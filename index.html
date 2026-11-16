@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mô phỏng 3D: Điều chế Al – Tinh chế Cu – Mạ điện</title>
+<style>
+:root{--bg:#0d1520;--panel:#13202f;--panel2:#1a2b40;--line:#27405c;--tx:#e8eef6;--mut:#92a6bd;--acc:#35c2a1;--acc2:#f0a04b;--bad:#ef6a6a;--ok:#4cd08a;--blue:#5aa9ff}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--tx);font-family:"Segoe UI",Roboto,Arial,sans-serif;font-size:14px}
+button{font-family:inherit;font-size:13px;cursor:pointer}
+#app{display:grid;grid-template-columns:330px minmax(0,1fr) 390px;grid-template-rows:46px minmax(0,1fr);height:100vh}
+header{grid-column:1/4;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#0a121c;border-bottom:1px solid var(--line)}
+header .ttl{font-weight:700;letter-spacing:.2px}
+header .ttl small{color:var(--mut);font-weight:400;margin-left:8px}
+header .tot{background:var(--panel2);border:1px solid var(--line);padding:4px 12px;border-radius:20px}
+header .tot b{color:var(--acc)}
+aside{background:var(--panel);overflow-y:auto;min-height:0}
+#left{border-right:1px solid var(--line)}
+#right{border-left:1px solid var(--line)}
+#tabs{display:flex;flex-direction:column;gap:6px;padding:10px}
+.tab{display:flex;align-items:center;gap:10px;text-align:left;background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.tab .n{width:26px;height:26px;border-radius:50%;background:#0d1a29;display:grid;place-items:center;font-weight:700;color:var(--acc);flex:none}
+.tab .tt{flex:1;line-height:1.25}
+.tab .tt small{display:block;color:var(--mut);font-size:11.5px}
+.tab .bd{font-size:11.5px;color:var(--mut);white-space:nowrap}
+.tab.on{border-color:var(--acc);background:#16384a}
+.tab.on .n{background:var(--acc);color:#04231b}
+#intro{margin:0 10px 8px;padding:9px 11px;font-size:12.5px;line-height:1.5;color:#c4d3e4;background:#0f1b2a;border-left:3px solid var(--acc2);border-radius:6px}
+#steps{padding:0 10px 14px;display:flex;flex-direction:column;gap:6px}
+.stp{border:1px solid var(--line);border-radius:10px;background:#101d2c;overflow:hidden}
+.stp .sh{display:flex;gap:9px;align-items:center;padding:8px 10px;cursor:pointer}
+.stp .si{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--mut);display:grid;place-items:center;font-size:12px;flex:none;color:var(--mut)}
+.stp .st{flex:1;line-height:1.3}
+.stp.done .si{background:var(--ok);border-color:var(--ok);color:#04231b}
+.stp.cur{border-color:var(--acc)}
+.stp.cur .si{border-color:var(--acc);color:var(--acc)}
+.stp.lock .st{color:var(--mut)}
+.stp .sb{padding:0 12px 11px 41px;font-size:12.8px;line-height:1.55;color:#c9d6e5}
+.eq{margin:7px 0;padding:6px 9px;background:#08111b;border-radius:6px;font-family:Cambria,"Times New Roman",serif;font-size:14px;color:#ffe3a8;line-height:1.6}
+.btn{background:var(--panel2);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+.btn:hover:not(:disabled){border-color:var(--acc)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#03241b;font-weight:700}
+.btn.pri:hover:not(:disabled){filter:brightness(1.08)}
+.btn.warn{border-color:var(--acc2);color:var(--acc2)}
+#stage{position:relative;min-width:0;min-height:0;background:#0d1520}
+#cv{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+#cv:active{cursor:grabbing}
+#hud{position:absolute;inset:0;pointer-events:none}
+#hud .card,#hud button,#hud label,#hud input{pointer-events:auto}
+.card{background:rgba(13,24,38,.9);border:1px solid var(--line);border-radius:12px;backdrop-filter:blur(6px)}
+#readout{position:absolute;left:12px;top:12px;padding:10px 13px;min-width:250px;max-width:340px;font-size:12.8px;line-height:1.65}
+#readout b{color:#fff}
+#readout .w{color:var(--acc2)}
+#tools{position:absolute;right:12px;top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+#tools label{display:flex;gap:6px;align-items:center;background:rgba(13,24,38,.9);border:1px solid var(--line);border-radius:8px;padding:6px 10px}
+#legend{position:absolute;right:12px;top:58px;padding:7px 11px;font-size:12px;line-height:1.6}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+#bar{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;width:min(96%,900px);padding:10px 12px}
+.brow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.ctl{margin-top:8px}
+.msg{color:var(--acc2);font-size:12.5px;flex:1;min-width:120px}
+.sl{display:flex;flex-direction:column;font-size:12px;color:var(--mut);min-width:150px}
+.sl b{color:#fff}
+.sl input{width:100%;accent-color:var(--acc)}
+.chk{display:flex;gap:6px;align-items:center;font-size:12.5px}
+#hint{position:absolute;left:12px;bottom:calc(100% - 0px);display:none}
+#nolib{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;padding:30px;background:rgba(10,18,28,.92);z-index:5;line-height:1.7}
+#qhead{padding:12px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+#qhead h3{margin:0 0 3px;font-size:15px}
+#qhead div{color:var(--mut);font-size:12.5px}
+#qhead b{color:var(--acc)}
+#qlist{padding:10px;display:flex;flex-direction:column;gap:10px}
+.qc{border:1px solid var(--line);border-radius:12px;background:#101d2c;padding:11px 12px}
+.qc.ok{border-color:var(--ok)}
+.qc.bad{border-color:var(--bad)}
+.qc.mid{border-color:var(--acc2)}
+.qh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.qn{font-weight:700}
+.qt{font-size:11.5px;color:var(--acc);background:#0b2a2a;border-radius:10px;padding:2px 8px}
+.qs{margin-left:auto;font-size:12px;color:var(--mut)}
+.qq{line-height:1.55;margin-bottom:8px}
+.opt{display:block;width:100%;text-align:left;background:#0d1826;color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:6px;line-height:1.4}
+.opt:hover:not(:disabled){border-color:var(--acc)}
+.opt.sel{border-color:var(--blue)}
+.opt.right{border-color:var(--ok);background:#0f2c22}
+.opt.wrong{border-color:var(--bad);background:#35161a}
+.numrow{display:flex;gap:8px;align-items:center}
+.numrow input{flex:1;min-width:0;background:#08111b;color:#fff;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px}
+.numrow input:focus{outline:none;border-color:var(--acc)}
+.unit{color:var(--mut);min-width:28px}
+.tfr{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;padding:6px 0;border-top:1px dashed #223853;font-size:13px;line-height:1.45}
+.tfr .tt{flex:1}
+.tfb{display:flex;gap:4px;flex:none}
+.tfb button{background:#0d1826;color:var(--tx);border:1px solid var(--line);border-radius:7px;padding:4px 9px}
+.tfb button.on{border-color:var(--blue);background:#14304d}
+.tfr.r .tt{color:#bdf0d3}
+.tfr.w .tt{color:#ffc3c3}
+.tfx{font-size:12px;color:var(--mut);margin-top:3px}
+.qf{margin-top:8px;font-size:12.8px;line-height:1.55;padding:8px 10px;border-radius:8px;background:#0b1522}
+.qf.g{border-left:3px solid var(--ok)}
+.qf.r{border-left:3px solid var(--bad)}
+.qf.y{border-left:3px solid var(--acc2)}
+.qa{margin-top:8px;display:flex;gap:8px}
+/* ---- gọn hơn + ẩn/hiện ---- */
+#app{--lw:280px;--rw:330px;grid-template-columns:var(--lw) minmax(0,1fr) var(--rw)}
+#left{grid-column:1;grid-row:2}#stage{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}
+#app.hl{--lw:0px}#app.hr{--rw:0px}
+#app.hl #left,#app.hr #right{display:none}
+header .tg{display:flex;gap:6px}
+header .tg button{background:var(--panel2);color:var(--mut);border:1px solid var(--line);border-radius:16px;padding:4px 11px}
+header .tg button.on{color:var(--tx);border-color:var(--acc)}
+#tabs{flex-direction:row;gap:5px;padding:8px}
+.tab{flex:1;flex-direction:column;gap:2px;padding:6px 3px;text-align:center;border-radius:9px;min-width:0}
+.tab .n{width:20px;height:20px;font-size:12px}
+.tab .tt{font-size:12px;line-height:1.2}
+.tab .bd{font-size:11px}
+#intro{margin:0 8px 6px;padding:0;background:none;border:0}
+#intro .lk{width:100%;text-align:left;background:#0f1b2a;color:#c4d3e4;border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-size:12px}
+#intro .it{margin-top:4px;padding:7px 9px;font-size:12px;line-height:1.5;color:#c4d3e4;background:#0f1b2a;border-left:3px solid var(--acc2);border-radius:6px}
+#steps{padding:0 8px 10px;gap:4px}
+.stp .sh{padding:6px 8px;gap:7px}
+.stp .si{width:19px;height:19px;font-size:11px}
+.stp .st{font-size:13px}
+.stp .sb{padding:0 9px 9px 34px;font-size:12px;line-height:1.5}
+.eq{font-size:13px;padding:4px 8px}
+#readout{padding:7px 11px;min-width:210px;font-size:12px;line-height:1.5}
+#readout .rh{cursor:pointer;display:flex;justify-content:space-between;gap:10px;font-weight:600;color:var(--acc)}
+#readout #roBody{margin-top:4px}
+#readout.min{min-width:0}
+#readout.min #roBody{display:none}
+#qhead{padding:8px 11px}#qhead h3{font-size:14px}#qhead div{font-size:12px}
+#qlist{padding:8px;gap:8px}
+.qc{padding:8px 10px}.qq{font-size:13px;line-height:1.45;margin-bottom:6px}
+.opt{padding:5px 8px;margin-bottom:4px;font-size:12.5px}
+.tfr{font-size:12.5px}
+.qf{font-size:12px;padding:6px 8px}
+@media (max-width:1050px){
+ #app{grid-template-columns:1fr;grid-template-rows:46px auto 78vh auto;height:auto}
+ #left,#stage,#right{grid-column:1;grid-row:auto}
+ header{grid-column:1}
+ aside{overflow:visible}
+ #left{border-right:none}
+ #right{border-left:none}
+ #readout{max-width:230px;font-size:12px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+ <header>
+  <div class="ttl">⚗ Mô phỏng 3D · Sản xuất &amp; tinh chế kim loại bằng điện phân<small>Hình 16.4 – 16.5</small></div>
+  <div class="tg"><button id="tgL" class="on" title="Ẩn/hiện thanh quy trình">☰ Quy trình</button><button id="tgR" class="on" title="Ẩn/hiện câu hỏi">❓ Câu hỏi</button></div>
+  <div class="tot">Tổng điểm: <b id="totScore">0</b> / 18</div>
+ </header>
+ <aside id="left">
+  <div id="tabs"></div>
+  <div id="intro"></div>
+  <div id="steps"></div>
+ </aside>
+ <main id="stage">
+  <canvas id="cv"></canvas>
+  <div id="hud">
+   <div id="readout" class="card"><div class="rh" id="roHead"><span>📊 Số liệu</span><span id="roArr">▾</span></div><div id="roBody"></div></div>
+   <div id="tools">
+    <label><input type="checkbox" id="lbl" checked> Nhãn</label>
+    <button class="btn" id="camReset">⟲ Camera</button>
+    <button class="btn warn" id="resetPart">↺ Làm lại phần này</button>
+   </div>
+   <div id="legend" class="card"></div>
+   <div id="bar" class="card"></div>
+  </div>
+  <div id="nolib"><div><h2>Không tải được thư viện Three.js</h2><p>Mô phỏng 3D cần tải <b>three.js</b> từ CDN (cdnjs / unpkg).<br>Hãy kiểm tra kết nối Internet rồi tải lại trang.<br>Phần quy trình và câu hỏi vẫn dùng được.</p></div></div>
+ </main>
+ <aside id="right">
+  <div id="qhead"></div>
+  <div id="qlist"></div>
+ </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>window.THREE||document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>')</script>
+<script>
+(function(){
+'use strict';
+const $=(s,r)=>(r||document).querySelector(s);
+const F=96500, MCu=64, MAl=27;
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const fmt=(x,d)=>Number(x).toFixed(d).replace('.',',');
+const HAS3D=typeof THREE!=='undefined';
+const hms=t=>{t=Math.floor(t);const h=Math.floor(t/3600),m=Math.floor(t%3600/60),s=t%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');};
+
+/* ========================= TRẠNG THÁI ========================= */
+function newState(p){
+ if(p===0) return {done:[false,false,false,false,false,false],pur:0,purGo:false,fill:0,fillGo:false,temp:25,heating:false,on:false,t:0,I:19.3,speed:300,al:0,alTot:0,burn:0,lower:0,auto:true,tapGo:false,tapped:0,gap:.65,f:1,ab:1.0,alTop:.35};
+ if(p===1) return {done:[false,false,false,false,false],fill:0,fillGo:false,place:0,placeGo:false,wired:false,on:false,t:0,I:5,speed:600,dm:0,out:0,outGo:false};
+ return {done:[false,false,false,false],fill:0,fillGo:false,place:0,placeGo:false,wireKey:null,flip:false,on:false,t:0,I:.5,speed:600,cu:0,corr:0,out:0,outGo:false};
+}
+let cur=0;
+const st=[newState(0),newState(1),newState(2)];
+const keyCath=s=>(s.wireKey==='neg')!==s.flip;
+const curStep=s=>s.done.findIndex(d=>!d);
+let selStep=[null,null,null];
+let introOpen=false;
+let toastT=0;
+function toast(m){const e=$('#msg');if(e){e.textContent=m;clearTimeout(toastT);toastT=setTimeout(()=>{const x=$('#msg');if(x)x.textContent='';},4500);}}
+
+/* ========================= NỘI DUNG QUY TRÌNH ========================= */
+function lowerAnode(s){
+ const room=s.ab-s.alTop-.15, d=Math.min(.12,room);
+ if(d<=.005){toast('Anode đã sát lớp nhôm lỏng — không thể hạ thêm.');return false;}
+ s.lower+=d;return true;
+}
+const PARTS=[
+{name:'Điều chế nhôm',sub:'Điện phân Al₂O₃ nóng chảy',
+ intro:'Các kim loại mạnh như Na, K, Mg, Ca, Al,… được sản xuất bằng điện phân nóng chảy (đpnc) hợp chất ion của chúng. Nhôm được sản xuất từ quặng bauxite theo hai giai đoạn: tinh chế quặng và điện phân Al₂O₃ nóng chảy (Hình 16.4).',
+ legend:'<span class="dot" style="background:#cdeeff"></span>Bọt khí O₂ &nbsp; <span class="dot" style="background:#8a8f96"></span>CO, CO₂ &nbsp; <span class="dot" style="background:#c8ced6"></span>Al lỏng',
+ steps:[
+ {t:'Tinh chế quặng bauxite',btn:'Tinh chế quặng',d:'Quặng bauxite (thành phần chính Al₂O₃·2H₂O) thường lẫn tạp chất. Loại bỏ tạp chất bằng phương pháp hoá học để thu được Al₂O₃.',eq:['Al₂O₃·2H₂O + tạp chất → Al₂O₃ (đã loại tạp chất)'],
+  ready:s=>s.purGo?'Đang tinh chế…':'',run:s=>{s.purGo=true;}},
+ {t:'Trộn Al₂O₃ với cryolite, nạp vào thùng',btn:'Nạp hỗn hợp vào thùng',d:'Al₂O₃ có nhiệt độ nóng chảy rất cao (2 050 °C) nên được trộn cùng cryolite (Na₃AlF₆). Thùng điện phân có cathode là tấm than chì ở đáy thùng, anode là những tấm than chì di chuyển được theo phương thẳng đứng.',eq:[],
+  ready:s=>s.fillGo?'Đang nạp…':'',run:s=>{s.fillGo=true;}},
+ {t:'Nung hỗn hợp nóng chảy ở gần 1 000 °C',btn:'Bật lò nung',d:'Hỗn hợp Al₂O₃ + cryolite nóng chảy ở gần 1 000 °C. Giải pháp này giúp tiết kiệm nhiều năng lượng, đồng thời tạo ra chất lỏng vừa dẫn điện tốt, vừa nổi lên trên Al lỏng để ngăn cách Al lỏng với không khí.',eq:[],
+  ready:s=>s.heating?'Đang nung…':'',run:s=>{s.heating=true;}},
+ {t:'Cho dòng điện một chiều đi qua',btn:'Bật dòng điện',instant:true,d:'Ở anode xảy ra quá trình oxi hoá O²⁻ thành O₂. Ở cathode xảy ra quá trình khử Al³⁺ thành Al. Al lỏng tích tụ ở đáy thùng.',eq:['Anode (+): 2O²⁻ → O₂ + 4e','Cathode (−): Al³⁺ + 3e → Al','2Al₂O₃ —đpnc→ 4Al + 3O₂'],
+  ready:()=>'',run:s=>{s.on=true;}},
+ {t:'Hạ dần các điện cực anode',btn:'Hạ anode xuống',instant:true,d:'Khí O₂ tạo thành ở nhiệt độ cao đốt cháy dần điện cực anode than chì thành CO và CO₂. Do vậy, trong quá trình điện phân phải hạ thấp dần các điện cực anode vào thùng điện phân.',eq:['C + O₂ → CO₂','2C + O₂ → 2CO'],
+  ready:s=>s.on?'':'Cần bật dòng điện trước.',run:s=>lowerAnode(s)},
+ {t:'Tháo nhôm nóng chảy',btn:'Mở cửa tháo nhôm',d:'Nhôm nóng chảy tích tụ ở đáy thùng (trên cathode). Mở cửa tháo để thu nhôm lỏng. Tăng tốc độ mô phỏng để nhôm tích tụ nhanh hơn.',eq:[],
+  ready:s=>s.tapGo?'Đang tháo…':(s.al<500?'Chờ nhôm tích tụ (≥ 0,5 kg) — có thể tăng tốc độ mô phỏng.':''),run:s=>{s.tapGo=true;}}
+ ]},
+{name:'Tinh chế đồng',sub:'Điện phân dung dịch CuSO₄',
+ intro:'Từ nguồn kim loại thô, các kim loại như Zn, Ni, Co, Cu, Ag, Au,… được tinh chế bằng điện phân dung dịch chất tan (muối hoặc phức chất) của kim loại đó với anode làm bằng kim loại thô tương ứng. Ví dụ: tinh chế đồng thô.',
+ legend:'<span class="dot" style="background:#5aa9ff"></span>Ion Cu²⁺ &nbsp; <span class="dot" style="background:#ffe066"></span>Electron (mạch ngoài)',
+ steps:[
+ {t:'Chuẩn bị dung dịch điện phân',btn:'Rót dung dịch',d:'Bình điện phân tinh chế đồng chứa dung dịch muối CuSO₄ trong dung dịch H₂SO₄.',eq:[],
+  ready:s=>s.fillGo?'Đang rót…':'',run:s=>{s.fillGo=true;}},
+ {t:'Đặt điện cực vào bình',btn:'Nhúng điện cực',d:'Anode làm bằng đồng thô, cathode là đồng tinh khiết.',eq:[],
+  ready:s=>s.placeGo?'Đang nhúng…':'',run:s=>{s.placeGo=true;}},
+ {t:'Nối nguồn điện một chiều',btn:'Nối dây dẫn',instant:true,d:'Nối anode (đồng thô) với cực dương (+) và cathode (đồng tinh khiết) với cực âm (−) của nguồn điện một chiều.',eq:[],
+  ready:()=>'',run:s=>{s.wired=true;}},
+ {t:'Bật nguồn — tiến hành điện phân',btn:'Bật nguồn điện',instant:true,d:'Tại anode: Cu bị oxi hoá thành ion Cu²⁺ đi vào dung dịch, do vậy anode dần bị hoà tan. Tại cathode: Cu²⁺ bị khử thành Cu bám trên cathode.',eq:['Anode (+): Cu → Cu²⁺ + 2e','Cathode (−): Cu²⁺ + 2e → Cu'],
+  ready:()=>'',run:s=>{s.on=true;}},
+ {t:'Kết thúc, lấy cathode ra',btn:'Ngắt điện & lấy cathode',d:'Quá trình điện phân này được coi như sự chuyển dời kim loại Cu từ anode (ở dạng đồng thô) về cathode (ở dạng đồng tinh khiết). Kết thúc quá trình thu được đồng tinh khiết ở cathode.',eq:[],
+  ready:s=>s.t>0?'':'Hãy cho điện phân chạy một lúc trước.',run:s=>{s.on=false;s.outGo=true;}}
+ ]},
+{name:'Mạ đồng lên chìa khoá',sub:'Điện phân mạ điện (Hình 16.5)',
+ intro:'Mạ điện là phủ lên bề mặt vật một lớp kim loại bằng điện phân: vật cần mạ (chìa khoá) làm cathode, kim loại dùng để mạ (đồng) làm anode, dung dịch chứa ion kim loại mạ (CuSO₄).',
+ legend:'<span class="dot" style="background:#5aa9ff"></span>Ion Cu²⁺ &nbsp; <span class="dot" style="background:#ffe066"></span>Electron (mạch ngoài)',
+ steps:[
+ {t:'Chuẩn bị dung dịch và điện cực',btn:'Rót dung dịch & nhúng điện cực',d:'Cốc điện phân chứa dung dịch CuSO₄; nhúng tấm đồng và chìa khoá (đã làm sạch) vào dung dịch.',eq:[],
+  ready:s=>(s.fillGo||s.placeGo)?'Đang thực hiện…':'',run:s=>{s.fillGo=true;}},
+ {t:'Nối nguồn điện đúng cực',btn:'Nối: chìa khoá → (−), tấm Cu → (+)',instant:true,d:'Anode là tấm đồng nối cực dương (+); cathode là chìa khoá nối cực âm (−). Bạn có thể thử nối ngược để quan sát hậu quả.',eq:[],
+  ready:s=>s.place>=1?'':'Chờ nhúng điện cực xong.',run:s=>{s.wireKey='neg';s.flip=false;}},
+ {t:'Bật nguồn — mạ đồng',btn:'Bật nguồn điện',instant:true,d:'Tại anode (tấm Cu): Cu → Cu²⁺ + 2e, tấm đồng tan dần. Tại cathode (chìa khoá): Cu²⁺ + 2e → Cu, đồng bám lên chìa khoá. Có thể bấm “Đảo cực” để làm thí nghiệm đối chứng.',eq:['Anode (+): Cu → Cu²⁺ + 2e','Cathode (−): Cu²⁺ + 2e → Cu'],
+  ready:()=>'',run:s=>{s.on=true;}},
+ {t:'Tắt nguồn, lấy chìa khoá ra',btn:'Ngắt điện & lấy chìa khoá',d:'Kết thúc điện phân, lấy chìa khoá ra: bề mặt được phủ một lớp đồng. Khối lượng Cu bám lên chìa khoá bằng khối lượng Cu tan ra từ anode (hiệu suất 100%).',eq:[],
+  ready:s=>s.t<=0?'Hãy cho điện phân chạy một lúc trước.':(s.flip?'Hãy đảo lại đúng cực (chìa khoá là cathode) trước khi kết thúc.':''),run:s=>{s.on=false;s.outGo=true;}}
+ ]}
+];
+
+/* ========================= CÂU HỎI ========================= */
+const QS=[
+[
+ {type:'mc',q:'Vì sao trong công nghiệp phải trộn Al₂O₃ với cryolite (Na₃AlF₆) trước khi điện phân?',
+  opts:['Để Al₂O₃ có nhiệt độ nóng chảy cao hơn 2 050 °C','Để Al₂O₃ bị khử thành Al mà không cần dòng điện','Để hạ nhiệt độ nóng chảy xuống gần 1 000 °C, tiết kiệm năng lượng, tạo chất lỏng dẫn điện tốt và nổi lên ngăn Al lỏng với không khí','Để loại bỏ tạp chất có trong quặng bauxite'],ans:2,
+  exp:'Al₂O₃ nóng chảy ở 2 050 °C. Trộn với cryolite thu được hỗn hợp nóng chảy ở gần 1 000 °C, tiết kiệm năng lượng, dẫn điện tốt và nổi lên trên Al lỏng để ngăn cách Al với không khí.'},
+ {type:'mc',q:'Trong thùng điện phân Al₂O₃ nóng chảy, quá trình xảy ra ở anode (than chì) là:',
+  opts:['Al³⁺ + 3e → Al','2O²⁻ → O₂ + 4e','Al → Al³⁺ + 3e','O₂ + 4e → 2O²⁻'],ans:1,
+  exp:'Anode (cực dương) là nơi xảy ra sự oxi hoá: ion O²⁻ nhường electron tạo O₂. Còn Al³⁺ bị khử thành Al ở cathode.'},
+ {type:'num',q:'Điện phân nóng chảy 102 kg Al₂O₃ (hiệu suất 100%). Tính khối lượng Al thu được. (Al = 27; O = 16)',unit:'kg',ans:54,
+  exp:'2Al₂O₃ → 4Al + 3O₂. n(Al₂O₃) = 102/102 = 1 kmol ⇒ n(Al) = 2 kmol ⇒ m(Al) = 2 × 27 = 54 kg.'},
+ {type:'num',q:'Điện phân nóng chảy Al₂O₃ với cường độ dòng điện 19 300 A trong 1 giờ (hiệu suất 100%). Tính khối lượng Al thu được. (Al = 27; F = 96 500 C/mol). Có thể kiểm chứng bằng mô phỏng: đặt I = 19,3 kA, hoàn thành bước “Hạ anode” (để chế độ tự động hạ anode hoạt động) rồi quan sát khối lượng Al tại mốc 01:00:00 (nếu anode chưa kịp hạ, dòng hiệu dụng sẽ nhỏ hơn 19,3 kA).',unit:'kg',ans:6.48,
+  exp:'n(e) = It/F = 19 300 × 3 600 / 96 500 = 720 mol. Al³⁺ + 3e → Al ⇒ n(Al) = 240 mol ⇒ m = 240 × 27 = 6 480 g = 6,48 kg.'},
+ {type:'tf',q:'Xét quá trình sản xuất nhôm bằng điện phân Al₂O₃ nóng chảy. Các nhận định sau đúng hay sai?',
+  items:[
+  {t:'Al₂O₃ được trộn với cryolite để hạ nhiệt độ nóng chảy của hỗn hợp xuống gần 1 000 °C.',a:true,x:'Đúng: Al₂O₃ nguyên chất nóng chảy ở 2 050 °C.'},
+  {t:'Anode là tấm than chì ở đáy thùng, cathode là các tấm than chì di chuyển được theo phương thẳng đứng.',a:false,x:'Sai: cathode là tấm than chì ở đáy thùng, anode mới là các tấm than chì di chuyển được.'},
+  {t:'Ở cathode xảy ra sự khử Al³⁺ thành Al.',a:true,x:'Đúng: Al³⁺ + 3e → Al.'},
+  {t:'Ở anode xảy ra sự khử O²⁻ thành O₂.',a:false,x:'Sai: ở anode xảy ra sự oxi hoá O²⁻ thành O₂.'}]},
+ {type:'tf',q:'Về sản xuất kim loại bằng điện phân và sự hao mòn của anode than chì, các nhận định sau đúng hay sai?',
+  items:[
+  {t:'Các kim loại mạnh như Na, K, Mg, Ca, Al được sản xuất bằng điện phân nóng chảy hợp chất ion của chúng.',a:true,x:'Đúng.'},
+  {t:'Khí O₂ sinh ra ở nhiệt độ cao đốt cháy anode than chì thành CO và CO₂, nên phải hạ dần anode vào thùng điện phân.',a:true,x:'Đúng: anode hao mòn dần nên phải hạ thấp để giữ khoảng cách tới lớp Al lỏng.'},
+  {t:'Kẽm được sản xuất bằng cách điện phân nóng chảy ZnSO₄.',a:false,x:'Sai: Zn là kim loại trung bình, được sản xuất bằng điện phân dung dịch ZnSO₄.'},
+  {t:'Phương trình điện phân: 2Al₂O₃ → 4Al + 3O₂ (điện phân nóng chảy).',a:true,x:'Đúng.'}]}
+],
+[
+ {type:'mc',q:'Trong bình điện phân tinh chế đồng, anode và cathode lần lượt là:',
+  opts:['đồng tinh khiết; đồng thô','đồng thô; đồng tinh khiết','than chì; đồng thô','đồng thô; than chì'],ans:1,
+  exp:'Anode làm bằng đồng thô (bị hoà tan dần), cathode là đồng tinh khiết (đồng bám vào).'},
+ {type:'mc',q:'Trong quá trình tinh chế đồng, tại anode xảy ra quá trình nào?',
+  opts:['Cu²⁺ + 2e → Cu','2H₂O + 2e → H₂ + 2OH⁻','Cu → Cu²⁺ + 2e','Cu²⁺ + e → Cu⁺'],ans:2,
+  exp:'Tại anode, Cu bị oxi hoá thành ion Cu²⁺ đi vào dung dịch nên anode dần bị hoà tan.'},
+ {type:'num',q:'Tinh chế đồng với cường độ dòng điện 9,65 A trong 1 000 giây (hiệu suất 100%). Tính khối lượng Cu bám vào cathode. (Cu = 64; F = 96 500 C/mol)',unit:'g',ans:3.2,
+  exp:'n(e) = It/F = 9,65 × 1 000 / 96 500 = 0,1 mol. Cu²⁺ + 2e → Cu ⇒ n(Cu) = 0,05 mol ⇒ m = 0,05 × 64 = 3,2 g.'},
+ {type:'num',q:'Trong quá trình tinh chế, anode bị hoà tan 6,4 g Cu (coi toàn bộ khối lượng giảm là Cu). Với I = 5 A, tính thời gian điện phân. (F = 96 500 C/mol)',unit:'s',ans:3860,
+  exp:'n(Cu) = 6,4/64 = 0,1 mol ⇒ n(e) = 0,2 mol ⇒ Q = 0,2 × 96 500 = 19 300 C ⇒ t = Q/I = 19 300/5 = 3 860 s. Có thể kiểm chứng trong mô phỏng (Δm = 6,4 g).'},
+ {type:'tf',q:'Về tinh chế đồng bằng điện phân dung dịch CuSO₄ trong H₂SO₄, các nhận định sau đúng hay sai?',
+  items:[
+  {t:'Anode làm bằng đồng thô và dần bị hoà tan.',a:true,x:'Đúng: Cu → Cu²⁺ + 2e.'},
+  {t:'Cathode là đồng tinh khiết và khối lượng cathode tăng dần.',a:true,x:'Đúng: Cu²⁺ + 2e → Cu bám lên cathode.'},
+  {t:'Ở cathode xảy ra sự oxi hoá ion Cu²⁺.',a:false,x:'Sai: ở cathode xảy ra sự khử Cu²⁺ thành Cu.'},
+  {t:'Kết thúc điện phân thu được đồng tinh khiết ở cathode.',a:true,x:'Đúng.'}]},
+ {type:'tf',q:'Trong quá trình điện phân tinh chế đồng, các nhận định sau đúng hay sai?',
+  items:[
+  {t:'Quá trình được coi như sự chuyển dời kim loại Cu từ anode về cathode.',a:true,x:'Đúng: Cu từ dạng đồng thô (anode) sang đồng tinh khiết (cathode).'},
+  {t:'Ion Cu²⁺ trong dung dịch chuyển động về phía anode.',a:false,x:'Sai: cation chuyển động về phía cathode (cực âm).'},
+  {t:'Số mol electron anode nhường bằng số mol electron cathode nhận.',a:true,x:'Đúng: bảo toàn electron trong mạch.'},
+  {t:'Phương pháp điện phân chỉ áp dụng để tinh chế đồng, không áp dụng cho Zn, Ni, Ag, Au.',a:false,x:'Sai: Zn, Ni, Co, Cu, Ag, Au,… đều được tinh chế bằng điện phân.'}]}
+],
+[
+ {type:'mc',q:'Để mạ đồng lên chìa khoá bằng phương pháp điện phân, cần nối chìa khoá với:',
+  opts:['cực dương, làm cathode','cực âm, làm anode','cực dương, làm anode','cực âm, làm cathode'],ans:3,
+  exp:'Vật cần mạ phải là cathode (nối cực âm) để ion Cu²⁺ bị khử thành Cu bám lên bề mặt.'},
+ {type:'mc',q:'Phản ứng xảy ra trên bề mặt chìa khoá (cathode) khi mạ đồng là:',
+  opts:['Cu²⁺ + 2e → Cu','Cu → Cu²⁺ + 2e','Fe → Fe²⁺ + 2e','2H₂O → O₂ + 4H⁺ + 4e'],ans:0,
+  exp:'Ở cathode ion Cu²⁺ nhận electron, bị khử thành Cu bám lên chìa khoá.'},
+ {type:'num',q:'Cần mạ lên chìa khoá 0,32 g Cu. Dùng dòng điện I = 0,5 A (hiệu suất 100%). Tính thời gian điện phân. (Cu = 64; F = 96 500 C/mol)',unit:'s',ans:1930,
+  exp:'n(Cu) = 0,32/64 = 0,005 mol ⇒ n(e) = 0,01 mol ⇒ Q = 0,01 × 96 500 = 965 C ⇒ t = 965/0,5 = 1 930 s.'},
+ {type:'num',q:'Mạ đồng với I = 0,4 A trong 3 860 s (hiệu suất 100%). Tính khối lượng Cu bám lên chìa khoá. (Cu = 64; F = 96 500 C/mol). Có thể kiểm chứng trong mô phỏng.',unit:'g',ans:0.512,
+  exp:'Q = 0,4 × 3 860 = 1 544 C ⇒ n(e) = 1 544/96 500 = 0,016 mol ⇒ n(Cu) = 0,008 mol ⇒ m = 0,008 × 64 = 0,512 g.'},
+ {type:'tf',q:'Về thí nghiệm mạ đồng lên chìa khoá (Hình 16.5), các nhận định sau đúng hay sai?',
+  items:[
+  {t:'Tấm đồng nối với cực dương và bị hoà tan dần.',a:true,x:'Đúng: anode bị oxi hoá, Cu → Cu²⁺ + 2e.'},
+  {t:'Đồng bám lên chìa khoá được nối với cực âm.',a:true,x:'Đúng.'},
+  {t:'Nồng độ Cu²⁺ trong dung dịch giảm mạnh vì Cu bám lên chìa khoá.',a:false,x:'Sai: Cu²⁺ mất đi ở cathode được bù lại bởi Cu²⁺ sinh ra ở anode nên nồng độ gần như không đổi.'},
+  {t:'Nếu nối chìa khoá với cực dương thì chìa khoá vẫn được mạ đồng.',a:false,x:'Sai: khi đó chìa khoá là anode, bị oxi hoá (hoà tan) chứ không được mạ.'}]},
+ {type:'tf',q:'Xét mạch điện và quá trình điện phân khi mạ đồng, các nhận định sau đúng hay sai?',
+  items:[
+  {t:'Ở anode xảy ra: Cu → Cu²⁺ + 2e.',a:true,x:'Đúng.'},
+  {t:'Trong mạch ngoài, electron chuyển từ anode qua nguồn điện đến cathode.',a:true,x:'Đúng: anode nhường electron, electron đi qua nguồn rồi tới cathode.'},
+  {t:'Khối lượng Cu bám lên chìa khoá lớn hơn khối lượng Cu mất đi ở anode (hiệu suất 100%).',a:false,x:'Sai: hai khối lượng bằng nhau vì số mol electron ở hai điện cực bằng nhau.'},
+  {t:'Ion Cu²⁺ trong dung dịch chuyển động về phía cathode (chìa khoá).',a:true,x:'Đúng.'}]}
+]
+];
+const QT={mc:'Trắc nghiệm',num:'Điền đáp án',tf:'Đúng / Sai'};
+const qst=[0,1,2].map(()=>QS[0].map(()=>({sel:null,vals:'',tf:[null,null,null,null],checked:false,score:0,att:0})));
+
+/* ========================= CẬP NHẬT TRẠNG THÁI THEO THỜI GIAN ========================= */
+function updP1(s,dt){
+ if(s.purGo){s.pur=Math.min(1,s.pur+dt/3);if(s.pur>=1){s.purGo=false;s.done[0]=true;ui();}}
+ if(s.fillGo){s.fill=Math.min(1,s.fill+dt/2.5);if(s.fill>=1){s.fillGo=false;s.done[1]=true;ui();}}
+ if(s.heating){s.temp=Math.min(1000,s.temp+dt*170);if(s.temp>=1000){s.heating=false;s.done[2]=true;ui();}}
+ const alTop=.35+(s.al>0?.03+Math.min(.5,s.al/20000*.5):0);
+ let ab=1.0-s.lower+s.burn;
+ if(s.auto&&s.done[4]&&!s.tapGo){
+  const target=1.0+s.burn-alTop-.5;
+  if(target>s.lower){s.lower=Math.min(target,s.lower+dt*.5);}
+  ab=1.0-s.lower+s.burn;
+ }
+ s.ab=ab;s.alTop=alTop;s.gap=ab-alTop;
+ s.f=s.gap<=.75?1:Math.max(.25,1-(s.gap-.75)*.9);
+ if(s.on&&s.temp>=950){
+  const dts=dt*s.speed,Ie=s.I*1000*s.f,dm=MAl*Ie*dts/(3*F);
+  s.al+=dm;s.alTot+=dm;s.t+=dts;
+  s.burn=Math.min(1.4,s.burn+.00017*(s.I/19.3)*dts);
+ }
+ if(s.tapGo){
+  const d=Math.min(s.al,dt*5000);s.al-=d;s.tapped+=d;
+  if(s.al<=.001){s.al=0;s.tapGo=false;s.done[5]=true;ui();}
+ }
+}
+function updCell(p,s,dt){
+ const iPlace=p===1?1:0, iOut=p===1?4:3;
+ if(s.fillGo){s.fill=Math.min(1,s.fill+dt/2);if(s.fill>=1){s.fillGo=false;if(p===1){s.done[0]=true;ui();}else{s.placeGo=true;}}}
+ if(s.placeGo){s.place=Math.min(1,s.place+dt/1.5);if(s.place>=1){s.placeGo=false;s.done[iPlace]=true;ui();}}
+ if(s.outGo){s.out=Math.min(1,s.out+dt/1.6);if(s.out>=1){s.outGo=false;s.done[iOut]=true;ui();}}
+ const wired=p===1?s.wired:s.wireKey!==null;
+ if(s.on&&s.out===0&&wired&&s.place>=1){
+  const dts=dt*s.speed;let dm=MCu*s.I*dts/(2*F);
+  if(p===1){
+   if(s.dm+dm>=30){dm=30-s.dm;s.on=false;toast('Anode đã tan hết lượng đồng thô ban đầu (giới hạn mô phỏng 30 g).');ui();}
+   s.dm+=dm;
+  }else{
+   if(keyCath(s)){s.cu+=dm;}
+   else if(s.cu>0){s.cu=Math.max(0,s.cu-dm);}
+   else{s.corr=Math.min(1,s.corr+dm*2);}
+  }
+  s.t+=dts;
+ }
+}
+
+/* ========================= 3D ========================= */
+let renderer,scene,camera;const V=[null,null,null];
+let showLabels=true;
+const cam={theta:.5,phi:1.2,r:13.5,tx:.7,ty:1.2,tz:0,goal:null};
+const CAMS=[{theta:.5,phi:1.2,r:13.8,tx:.7,ty:1.2,tz:0},{theta:.45,phi:1.22,r:10.5,tx:0,ty:1.8,tz:-.9},{theta:.45,phi:1.22,r:10.5,tx:0,ty:1.8,tz:-.9}];
+const dummy=HAS3D?new THREE.Object3D():null;
+const rnd=(a,b)=>a+Math.random()*(b-a);
+
+function mat(c,o){return new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.5,metalness:.1},o||{}));}
+function bx(w,h,d,m,x,y,z,par){const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x||0,y||0,z||0);if(par)par.add(o);return o;}
+function rrect(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.lineTo(x+w-r,y);c.quadraticCurveTo(x+w,y,x+w,y+r);c.lineTo(x+w,y+h-r);c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);c.lineTo(x+r,y+h);c.quadraticCurveTo(x,y+h,x,y+h-r);c.lineTo(x,y+r);c.quadraticCurveTo(x,y,x+r,y);c.closePath();}
+function makeLabel(text,o){
+ o=o||{};const fs=o.fs||32,pad=14,c=document.createElement('canvas'),x=c.getContext('2d');
+ const font='600 '+fs+'px "Segoe UI",Arial,sans-serif';x.font=font;
+ const lines=text.split('\n');let w=0;lines.forEach(l=>{w=Math.max(w,x.measureText(l).width);});
+ c.width=Math.ceil(w+pad*2);c.height=Math.ceil(lines.length*fs*1.28+pad*2);
+ x.font=font;x.fillStyle=o.bg||'rgba(9,20,33,.88)';rrect(x,1,1,c.width-2,c.height-2,12);x.fill();
+ x.strokeStyle=o.line||'rgba(80,140,190,.8)';x.lineWidth=2;x.stroke();
+ x.fillStyle=o.color||'#fff';x.textBaseline='middle';
+ lines.forEach((l,i)=>x.fillText(l,pad,pad+fs*1.28*(i+.5)));
+ const tex=new THREE.CanvasTexture(c);tex.minFilter=THREE.LinearFilter;
+ const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false,depthWrite:false}));
+ const k=o.s||.0046;sp.scale.set(c.width*k,c.height*k,1);sp.renderOrder=20;return sp;
+}
+function addLab(v,text,x,y,z,cond,par,o){const sp=makeLabel(text,o);sp.position.set(x,y,z);(par||v.g).add(sp);v.labels.push({sp,cond});return sp;}
+
+/* ---------- Phần 1: thùng điện phân Al2O3 ---------- */
+function buildP1(){
+ const v={g:new THREE.Group(),labels:[]},g=v.g;
+ bx(19,.7,9,mat(0x213246),.8,-.65,0,g);
+ const steel=mat(0x2bb39a,{roughness:.45,metalness:.35});
+ bx(6.4,.3,3.6,steel,0,-.15,0,g);
+ bx(.2,2.0,3.6,steel,-3.1,1.0,0,g);
+ bx(.2,2.0,3.6,steel,3.1,1.0,0,g);
+ bx(6.4,2.0,.2,steel,0,1.0,-1.7,g);
+ const glass=new THREE.MeshStandardMaterial({color:0x9fe9d8,transparent:true,opacity:.1,roughness:.1,depthWrite:false});
+ bx(6.0,2.0,.05,glass,0,1.0,1.72,g);
+ const blk=mat(0x0a120e,{roughness:.8});
+ bx(.14,1.15,3.2,blk,-2.93,.35+.575,0,g);
+ bx(.14,1.15,3.2,blk,2.93,.35+.575,0,g);
+ bx(5.72,.35,3.2,blk,0,.175,0,g);
+ // nhôm lỏng
+ v.al=new THREE.Mesh(new THREE.BoxGeometry(5.5,1,3.05),mat(0xcfd5dd,{metalness:.95,roughness:.22,emissive:0x222a33}));g.add(v.al);
+ // hỗn hợp
+ v.elecMat=new THREE.MeshStandardMaterial({color:0xe6e4da,transparent:true,opacity:.97,roughness:.6,depthWrite:false});
+ v.elec=new THREE.Mesh(new THREE.BoxGeometry(5.5,1,3.05),v.elecMat);g.add(v.elec);
+ v.cSolid=new THREE.Color(0xe6e4da);v.cMolten=new THREE.Color(0xe2b94d);
+ v.light=new THREE.PointLight(0xff8a2a,0,9);v.light.position.set(0,1.1,0);g.add(v.light);
+ // anode
+ v.rig=new THREE.Group();g.add(v.rig);
+ bx(5.8,.22,.8,steel,0,3.1,0,v.rig);
+ v.ablk=[];
+ [-2.2,-1.1,0,1.1,2.2].forEach(x=>{
+  bx(.3,.4,.5,steel,x,2.9,0,v.rig);
+  const b=new THREE.Mesh(new THREE.BoxGeometry(.6,1,2.4),mat(0x0b140f,{roughness:.85}));b.position.set(x,2.3,0);v.rig.add(b);v.ablk.push(b);
+ });
+ // cửa tháo
+ const pipe=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,.95,16),mat(0x2bb39a,{metalness:.4}));pipe.rotation.z=Math.PI/2;pipe.position.set(3.45,.45,0);g.add(pipe);
+ bx(.1,.25,.1,steel,3.3,.58,0,g);
+ v.wheel=bx(.5,.05,.1,mat(0x3be0b8),3.3,.72,0,g);
+ const cr=new THREE.Mesh(new THREE.CylinderGeometry(.5,.38,.6,28,1,true),new THREE.MeshStandardMaterial({color:0x8a949e,side:THREE.DoubleSide,roughness:.5,metalness:.6}));cr.position.set(3.9,0,0);g.add(cr);
+ const crb=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.04,24),mat(0x6f7a85,{metalness:.5}));crb.position.set(3.9,-.28,0);g.add(crb);
+ v.cfill=new THREE.Mesh(new THREE.CylinderGeometry(.43,.38,1,24),mat(0xdfe5ec,{metalness:.95,roughness:.2}));v.cfill.position.set(3.9,-.28,0);g.add(v.cfill);
+ v.stream=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,1,10),mat(0xf1f4f8,{metalness:.9,roughness:.15,emissive:0x556070}));g.add(v.stream);
+ // đống quặng
+ const mkPile=(x,z,cols)=>{
+  const pg=new THREE.Group();pg.position.set(x,-.3,z);g.add(pg);const arr=[];
+  for(let i=0;i<46;i++){
+   const r=rnd(.1,.26),a=rnd(0,6.283),d=Math.sqrt(Math.random())*1.05,h=Math.max(0,.75-d*.7);
+   const imp=cols.imp&&Math.random()<.28;
+   const m=new THREE.Mesh(new THREE.IcosahedronGeometry(r,0),imp?cols.impMat:cols.main);
+   m.position.set(Math.cos(a)*d,h*.6+r*.6,Math.sin(a)*d);m.rotation.set(rnd(0,3),rnd(0,3),rnd(0,3));pg.add(m);arr.push({m,imp});
+  }
+  return {pg,arr};
+ };
+ v.bauxMat=mat(0x8a4b2e,{roughness:.9});v.impMat=mat(0x303036,{roughness:.9});
+ v.cBr=new THREE.Color(0x8a4b2e);v.cWh=new THREE.Color(0xf3f3ef);
+ const pb=mkPile(-5.3,1.2,{main:v.bauxMat,impMat:v.impMat,imp:true});v.baux=pb.pg;v.bauxArr=pb.arr;
+ const pc=mkPile(-5.3,-1.6,{main:mat(0xdce8f2,{roughness:.7}),imp:false});v.cryo=pc.pg;
+ // dụng cụ nhãn
+ addLab(v,'Quặng bauxite\nAl₂O₃·2H₂O + tạp chất',-5.3,1.4,1.2,s=>s.pur<1&&s.fill<1);
+ addLab(v,'Al₂O₃ đã tinh chế',-5.3,1.4,1.2,s=>s.pur>=1&&s.fill<1);
+ addLab(v,'Cryolite Na₃AlF₆',-5.3,1.4,-1.6,s=>s.fill<1);
+ addLab(v,'Anode bằng than chì',-2.2,3.85,0,s=>true,v.rig);
+ addLab(v,'Cathode bằng than chì',-2.4,-.85,2.1,s=>true);
+ addLab(v,'Nhôm nóng chảy',-2.4,.7,2.15,s=>s.al>1);
+ addLab(v,'Hỗn hợp Al₂O₃ + cryolite\nnóng chảy',1.9,2.55,2.1,s=>s.fill>=1);
+ addLab(v,'Cửa tháo\nnhôm nóng chảy',3.35,1.35,.9,s=>true);
+ // bọt khí
+ const N=220;
+ v.bub={m:new THREE.InstancedMesh(new THREE.SphereGeometry(.06,8,8),new THREE.MeshBasicMaterial({color:0xcdeeff,transparent:true,opacity:.85}),N),a:Array.from({length:N},()=>({on:false,x:0,y:0,z:0,vy:0,ph:0})),acc:0};
+ v.bub.m.frustumCulled=false;g.add(v.bub.m);
+ const M=70;
+ v.puf={m:new THREE.InstancedMesh(new THREE.SphereGeometry(.14,10,10),new THREE.MeshBasicMaterial({color:0x8a8f96,transparent:true,opacity:.45,depthWrite:false}),M),a:Array.from({length:M},()=>({on:false,x:0,y:0,z:0,u:0})),acc:0};
+ v.puf.m.frustumCulled=false;g.add(v.puf.m);
+ for(let i=0;i<N;i++){dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);dummy.updateMatrix();v.bub.m.setMatrixAt(i,dummy.matrix);}
+ for(let i=0;i<M;i++){dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);dummy.updateMatrix();v.puf.m.setMatrixAt(i,dummy.matrix);}
+ return v;
+}
+function viewP1(dt){
+ const s=st[0],v=V[0];
+ const ps=1-s.fill;
+ v.baux.visible=v.cryo.visible=ps>.01;
+ v.baux.scale.setScalar(Math.max(.001,ps));v.cryo.scale.setScalar(Math.max(.001,ps));
+ v.bauxMat.color.copy(v.cBr).lerp(v.cWh,s.pur);
+ v.bauxArr.forEach(o=>{if(o.imp)o.m.scale.setScalar(Math.max(.001,1-s.pur));});
+ const H=1.3*s.fill;
+ v.elec.visible=H>.01;v.elec.scale.y=Math.max(.001,H);v.elec.position.y=.35+H/2;
+ const heat=clamp((s.temp-25)/975,0,1),melt=clamp((s.temp-800)/200,0,1);
+ v.elecMat.color.copy(v.cSolid).lerp(v.cMolten,heat);
+ v.elecMat.opacity=.97-.37*melt;
+ v.elecMat.emissive.setRGB(heat*.35,heat*.16,heat*.03);
+ v.light.intensity=heat*1.3;
+ const h=s.al>0?.03+Math.min(.5,s.al/20000*.5):0;
+ v.al.visible=h>.001;v.al.scale.y=Math.max(.001,h);v.al.position.y=.35+h/2;
+ v.al.material.emissive.setRGB(.12*heat,.05*heat,0);
+ const AH=1.8-s.burn;
+ v.ablk.forEach(b=>{b.scale.y=AH;b.position.y=2.8-AH/2;});
+ v.rig.position.y=-s.lower;
+ const cf=Math.min(.45,s.tapped/20000*.45);
+ v.cfill.visible=cf>.003;v.cfill.scale.y=Math.max(.001,cf);v.cfill.position.y=-.28+cf/2;
+ v.stream.visible=s.tapGo;
+ if(s.tapGo){const top=.45,bot=-.28+cf,L=top-bot;v.stream.scale.y=L;v.stream.position.set(3.9,bot+L/2,0);v.wheel.rotation.y+=dt*6;}
+ // bọt khí
+ const run=s.on&&s.temp>=950,B=v.bub;
+ if(run){B.acc+=dt*70*s.f*(s.I/19.3);while(B.acc>=1){B.acc-=1;const q=B.a.find(o=>!o.on);if(!q)break;const xs=[-2.2,-1.1,0,1.1,2.2][Math.floor(Math.random()*5)];q.on=true;q.x=xs+rnd(-.27,.27);q.z=rnd(-1.05,1.05);q.y=s.ab+rnd(-.02,.35);q.vy=rnd(.7,1.3);q.ph=rnd(0,6);}}
+ for(let i=0;i<B.a.length;i++){
+  const q=B.a[i];
+  if(q.on){q.y+=q.vy*dt;q.ph+=dt*6;if(q.y>1.64){q.on=false;if(Math.random()<.5){const w=v.puf.a.find(o=>!o.on);if(w){w.on=true;w.x=q.x;w.z=q.z;w.y=1.72;w.u=0;}}}}
+  if(q.on){dummy.position.set(q.x+Math.sin(q.ph)*.03,q.y,q.z);dummy.scale.setScalar(1);}else{dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);}
+  dummy.updateMatrix();B.m.setMatrixAt(i,dummy.matrix);
+ }
+ B.m.instanceMatrix.needsUpdate=true;
+ const P=v.puf;
+ for(let i=0;i<P.a.length;i++){
+  const w=P.a[i];
+  if(w.on){w.u+=dt/1.8;w.y+=dt*.55;w.x+=dt*.05;if(w.u>=1)w.on=false;}
+  if(w.on){dummy.position.set(w.x,w.y,w.z);dummy.scale.setScalar((.5+w.u)*(1-w.u*w.u));}else{dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);}
+  dummy.updateMatrix();P.m.setMatrixAt(i,dummy.matrix);
+ }
+ P.m.instanceMatrix.needsUpdate=true;
+}
+
+/* ---------- Phần 2 & 3: bình điện phân dung dịch ---------- */
+function buildKey(m){
+ const g=new THREE.Group();
+ const head=new THREE.Shape();head.absarc(0,0,.32,0,Math.PI*2,false);
+ const hole=new THREE.Path();hole.absarc(0,.06,.09,0,Math.PI*2,true);head.holes.push(hole);
+ const sh=new THREE.Shape();
+ sh.moveTo(-.1,-.25);sh.lineTo(-.1,-1.45);sh.lineTo(.28,-1.45);sh.lineTo(.28,-1.3);sh.lineTo(.16,-1.3);sh.lineTo(.16,-1.18);sh.lineTo(.28,-1.18);sh.lineTo(.28,-1.03);sh.lineTo(.1,-1.03);sh.lineTo(.1,-.25);sh.lineTo(-.1,-.25);
+ const o={depth:.07,bevelEnabled:true,bevelThickness:.015,bevelSize:.015,bevelSegments:1,curveSegments:24};
+ [head,sh].forEach(S=>{const gm=new THREE.ExtrudeGeometry(S,o);gm.translate(0,0,-.035);g.add(new THREE.Mesh(gm,m));});
+ return g;
+}
+function buildCell(p){
+ const v={g:new THREE.Group(),labels:[]},g=v.g;
+ bx(13,1,9,mat(0x213246),0,-.5,-.6,g);
+ const gl=new THREE.MeshStandardMaterial({color:0xbfe3ff,transparent:true,opacity:.16,roughness:.05,side:THREE.DoubleSide,depthWrite:false});
+ const bk=new THREE.Mesh(new THREE.CylinderGeometry(1.8,1.8,3.2,48,1,true),gl);bk.position.y=1.6;g.add(bk);
+ const bb=new THREE.Mesh(new THREE.CircleGeometry(1.8,48),new THREE.MeshStandardMaterial({color:0xbfe3ff,transparent:true,opacity:.25,depthWrite:false}));bb.rotation.x=-Math.PI/2;bb.position.y=.01;g.add(bb);
+ v.solMat=new THREE.MeshStandardMaterial({color:0x2f86d6,transparent:true,opacity:.5,roughness:.2,depthWrite:false});
+ v.sol=new THREE.Mesh(new THREE.CylinderGeometry(1.72,1.72,1,48),v.solMat);g.add(v.sol);
+ // nguồn điện
+ bx(3.6,1.1,1.3,mat(0x2a3b52,{roughness:.6}),0,.55,-3.2,g);
+ bx(3.2,.04,1.0,mat(0x101a28),0,1.12,-3.2,g);
+ const tm=(c,x)=>{const t=new THREE.Mesh(new THREE.CylinderGeometry(.14,.14,.25,18),mat(c,{metalness:.5}));t.position.set(x,1.25,-3.2);g.add(t);};
+ tm(0xd33a3a,-1.0);tm(0x1d1d1d,1.0);
+ v.led=new THREE.Mesh(new THREE.SphereGeometry(.1,14,14),new THREE.MeshBasicMaterial({color:0x335544}));v.led.position.set(0,1.18,-3.2);g.add(v.led);
+ addLab(v,'+',-1.0,1.8,-3.2,s=>true,null,{fs:40,s:.0042,color:'#ff8a8a'});
+ addLab(v,'−',1.0,1.8,-3.2,s=>true,null,{fs:40,s:.0042,color:'#dfe6ee'});
+ addLab(v,'Nguồn điện một chiều',0,.3,-2.45,s=>true,null,{fs:26});
+ // điện cực
+ v.eL=new THREE.Group();v.eR=new THREE.Group();v.eL.position.x=-.9;v.eR.position.x=.9;g.add(v.eL,v.eR);
+ const rodM=mat(0x9aa3ad,{metalness:.9,roughness:.3});
+ const addRod=(grp,y0,y1)=>{const L=y1-y0;const r=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,L,10),rodM);r.position.y=(y0+y1)/2;grp.add(r);const cm=mat(0x888888);const c=new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,.22,14),cm);c.position.y=y1+.02;grp.add(c);return cm;};
+ if(p===1){
+  const geo=new THREE.BoxGeometry(1,2.1,1.2,6,12,8),pos=geo.attributes.position,cols=[];
+  for(let i=0;i<pos.count;i++){pos.setXYZ(i,pos.getX(i)+rnd(-.03,.03),pos.getY(i)+rnd(-.02,.02),pos.getZ(i)+rnd(-.02,.02));const k=rnd(0,1);cols.push(.43+.1*k,.23+.07*k,.13+.04*k);}
+  geo.setAttribute('color',new THREE.Float32BufferAttribute(cols,3));geo.computeVertexNormals();
+  v.anode=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.85,metalness:.3}));
+  v.anode.position.y=1.95;v.anode.scale.x=.5;v.baseL=.5;v.eL.add(v.anode);
+  v.cath=new THREE.Mesh(new THREE.BoxGeometry(1,2.1,1.2),mat(0xe0905f,{metalness:.9,roughness:.28,emissive:0x2a1208}));
+  v.cath.position.y=1.95;v.cath.scale.x=.08;v.baseR=.08;v.eR.add(v.cath);
+  v.clipL=addRod(v.eL,3.0,3.9);v.clipR=addRod(v.eR,3.0,3.9);
+  addLab(v,'Anode: đồng thô',-1.9,3.7,0,s=>true,null);
+  addLab(v,'Cathode: đồng tinh khiết',1.9,3.7,0,s=>true,null);
+ }else{
+  v.anode=new THREE.Mesh(new THREE.BoxGeometry(1,2.1,1.2),mat(0xc4723f,{metalness:.9,roughness:.32,emissive:0x2a1208}));
+  v.anode.position.y=1.95;v.anode.scale.x=.25;v.baseL=.25;v.eL.add(v.anode);
+  v.keyMat=mat(0x9aa3ad,{metalness:.85,roughness:.35});
+  v.key=buildKey(v.keyMat);v.key.scale.setScalar(.85);v.key.position.y=2.1;v.key.rotation.y=Math.PI/2;v.eR.add(v.key);
+  v.clipL=addRod(v.eL,3.0,3.9);v.clipR=addRod(v.eR,2.2,3.9);
+  v.cC=new THREE.Color(0x9aa3ad);v.cCu=new THREE.Color(0xd1783f);v.cRust=new THREE.Color(0x4a3025);
+  addLab(v,'Tấm đồng (Cu)',-1.9,3.7,0,s=>true,null);
+  addLab(v,'Chìa khoá',1.7,3.7,0,s=>true,null);
+ }
+ v.lblL=null;
+ // dây dẫn
+ v.wireKey='';v.wires=[];v.curves=[null,null];
+ v.eMesh=new THREE.InstancedMesh(new THREE.SphereGeometry(.06,10,10),new THREE.MeshBasicMaterial({color:0xffe066}),28);v.eMesh.frustumCulled=false;g.add(v.eMesh);
+ v.ePh=0;
+ // ion
+ v.ionMat=new THREE.MeshStandardMaterial({color:0x5aa9ff,emissive:0x1b4f95,roughness:.3});
+ const N=90;
+ v.ion={m:new THREE.InstancedMesh(new THREE.SphereGeometry(.065,10,10),v.ionMat,N),a:Array.from({length:N},()=>({on:false,x:0,y:0,z:0,vx:0,ph:0})),acc:0};
+ v.ion.m.frustumCulled=false;g.add(v.ion.m);
+ for(let i=0;i<N;i++){dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);dummy.updateMatrix();v.ion.m.setMatrixAt(i,dummy.matrix);}
+ for(let i=0;i<28;i++){dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);dummy.updateMatrix();v.eMesh.setMatrixAt(i,dummy.matrix);}
+ return v;
+}
+function setWires(v,posIsL,show){
+ v.wires.forEach(w=>{v.g.remove(w);w.geometry.dispose();});v.wires=[];
+ if(!show)return;
+ const tp=new THREE.Vector3(-1.0,1.4,-3.2),tn=new THREE.Vector3(1.0,1.4,-3.2);
+ const ep=new THREE.Vector3(posIsL?-.9:.9,3.95,0),en=new THREE.Vector3(posIsL?.9:-.9,3.95,0);
+ const mk=(t,e)=>new THREE.CatmullRomCurve3([t.clone(),new THREE.Vector3(t.x,2.5,-3.0),new THREE.Vector3((t.x+e.x)/2,4.4,-1.7),new THREE.Vector3(e.x,4.35,-.5),e.clone()]);
+ v.curves[0]=mk(tp,ep);v.curves[1]=mk(tn,en);
+ [[v.curves[0],0xd33a3a],[v.curves[1],0x3a424d]].forEach(a=>{
+  const m=new THREE.Mesh(new THREE.TubeGeometry(a[0],48,.045,8,false),mat(a[1],{roughness:.5}));v.g.add(m);v.wires.push(m);
+ });
+}
+function viewCell(p,dt){
+ const s=st[p],v=V[p];
+ const H=2.5*s.fill;v.sol.visible=H>.01;v.sol.scale.y=Math.max(.001,H);v.sol.position.y=H/2+.02;
+ const pl=ease(s.place),lift=(1-pl)*1.9,out=ease(s.out);
+ v.eL.position.y=lift;v.eR.position.y=lift+out*1.7;
+ const wired=p===1?s.wired:s.wireKey!==null;
+ const posIsL=p===1?true:keyCath(s);
+ const showW=wired&&s.place>=1&&s.out===0;
+ const wk=showW+'|'+posIsL;
+ if(wk!==v.wireKey){v.wireKey=wk;setWires(v,posIsL,showW);}
+ const cRed=0xd33a3a,cBlk=0x2b2f36;
+ const posClip=showW||s.out>0&&wired;
+ if(wired){v.clipL.color.setHex(posIsL?cRed:cBlk);v.clipR.color.setHex(posIsL?cBlk:cRed);}else{v.clipL.color.setHex(0x888888);v.clipR.color.setHex(0x888888);}
+ const run=s.on&&showW;
+ v.led.material.color.setHex(run?0x44ff88:0x335544);
+ // kích thước điện cực
+ if(p===1){
+  v.anode.scale.x=v.baseL*Math.max(.3,1-Math.min(.7,s.dm*.02));
+  v.cath.scale.x=v.baseR*(1+Math.min(4,s.dm*.1));
+ }else{
+  v.anode.scale.x=v.baseL*Math.max(.35,1-Math.min(.65,s.cu*.15));
+  const cov=clamp(s.cu*55.8/8,0,1);
+  v.keyMat.color.copy(v.cC).lerp(v.cCu,cov).lerp(v.cRust,s.corr*.75);
+ }
+ // electron
+ const E=v.eMesh,nE=14;
+ if(run){v.ePh=(v.ePh+dt*(.15+.45*(p===1?s.I/10:s.I/2)))%1;}
+ for(let i=0;i<28;i++){
+  const w=i<nE?0:1,k=i%nE;
+  if(run&&v.curves[w]){
+   const u=((k/nE)+v.ePh)%1;
+   const pt=w===0?v.curves[0].getPointAt(1-u):v.curves[1].getPointAt(u);
+   dummy.position.copy(pt);dummy.scale.setScalar(1);
+  }else{dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);}
+  dummy.updateMatrix();E.setMatrixAt(i,dummy.matrix);
+ }
+ E.instanceMatrix.needsUpdate=true;
+ // ion
+ const I=v.ion,In=p===1?s.I/10:s.I/2;
+ if(p===2){v.ionMat.color.setHex((!keyCath(s)&&s.cu<=0)?0xe0954a:0x5aa9ff);v.ionMat.emissive.setHex((!keyCath(s)&&s.cu<=0)?0x6a3a10:0x1b4f95);}
+ const dir=posIsL?1:-1,x0=(posIsL?-.9:.9)+dir*.3,x1=(posIsL?.9:-.9)-dir*.22;
+ if(run){I.acc+=dt*(10+36*In);while(I.acc>=1){I.acc-=1;const q=I.a.find(o=>!o.on);if(!q)break;q.on=true;q.x=x0;q.y=rnd(1.0,Math.max(1.2,H-.15));q.z=rnd(-.5,.5);q.vx=dir*(.45+.8*In)*rnd(.8,1.2);q.ph=rnd(0,6);}}
+ for(let i=0;i<I.a.length;i++){
+  const q=I.a[i];
+  if(q.on){q.x+=q.vx*dt;q.ph+=dt*5;q.y=clamp(q.y+Math.sin(q.ph)*dt*.15,.9,Math.max(1.2,H-.1));if((dir>0&&q.x>=x1)||(dir<0&&q.x<=x1))q.on=false;}
+  if(q.on){dummy.position.set(q.x,q.y,q.z);dummy.scale.setScalar(1);}else{dummy.position.set(0,-9,0);dummy.scale.setScalar(1e-4);}
+  dummy.updateMatrix();I.m.setMatrixAt(i,dummy.matrix);
+ }
+ I.m.instanceMatrix.needsUpdate=true;
+}
+
+/* ---------- khởi tạo, camera, vòng lặp ---------- */
+function init3D(){
+ const cv=$('#cv');
+ renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+ scene=new THREE.Scene();scene.background=new THREE.Color(0x0d1520);
+ camera=new THREE.PerspectiveCamera(40,1,.1,200);
+ scene.add(new THREE.HemisphereLight(0xdbe9ff,0x2a3b4d,1.05));
+ const d1=new THREE.DirectionalLight(0xffffff,.9);d1.position.set(6,11,8);scene.add(d1);
+ const d2=new THREE.DirectionalLight(0x9fc4ff,.4);d2.position.set(-8,5,-6);scene.add(d2);
+ const fl=new THREE.Mesh(new THREE.PlaneGeometry(90,90),new THREE.MeshStandardMaterial({color:0x0f1a28,roughness:1}));fl.rotation.x=-Math.PI/2;fl.position.y=-1.01;scene.add(fl);
+ const gr=new THREE.GridHelper(90,90,0x1d2f44,0x14233a);gr.position.y=-1.0;scene.add(gr);
+ V[0]=buildP1();V[1]=buildCell(1);V[2]=buildCell(2);
+ V.forEach(v=>scene.add(v.g));
+ Object.assign(cam,CAMS[0]);
+ const ptrs=new Map();
+ const dist=()=>{const a=[...ptrs.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)||1;};
+ cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});cam.goal=null;});
+ cv.addEventListener('pointermove',e=>{
+  const q=ptrs.get(e.pointerId);if(!q)return;
+  if(ptrs.size===1){cam.theta-=(e.clientX-q.x)*.006;cam.phi=clamp(cam.phi-(e.clientY-q.y)*.006,.2,1.55);q.x=e.clientX;q.y=e.clientY;}
+  else if(ptrs.size===2){const b=dist();q.x=e.clientX;q.y=e.clientY;const a=dist();cam.r=clamp(cam.r*b/a,4,26);}
+ });
+ const up=e=>{ptrs.delete(e.pointerId);};
+ cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);
+ cv.addEventListener('wheel',e=>{e.preventDefault();cam.goal=null;cam.r=clamp(cam.r*Math.exp(e.deltaY*.001),4,26);},{passive:false});
+ const rs=()=>{const r=$('#stage').getBoundingClientRect();const w=Math.max(10,r.width),h=Math.max(10,r.height);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();};
+ window.addEventListener('resize',rs);if(window.ResizeObserver)new ResizeObserver(rs).observe($('#stage'));rs();
+}
+function goCam(p){cam.goal=Object.assign({},CAMS[p]);}
+function applyCam(dt){
+ if(cam.goal){const k=Math.min(1,dt*4);['theta','phi','r','tx','ty','tz'].forEach(a=>{cam[a]+=(cam.goal[a]-cam[a])*k;});if(Math.abs(cam.goal.theta-cam.theta)+Math.abs(cam.goal.r-cam.r)<.01)cam.goal=null;}
+ const sp=Math.sin(cam.phi);
+ camera.position.set(cam.tx+cam.r*sp*Math.sin(cam.theta),cam.ty+cam.r*Math.cos(cam.phi),cam.tz+cam.r*sp*Math.cos(cam.theta));
+ camera.lookAt(cam.tx,cam.ty,cam.tz);
+}
+let last=performance.now(),roAcc=0;
+function loop(now){
+ requestAnimationFrame(loop);
+ const dt=Math.min(.05,(now-last)/1000);last=now;
+ const s=st[cur];
+ if(cur===0)updP1(s,dt);else updCell(cur,s,dt);
+ if(HAS3D&&renderer){
+  V.forEach((v,i)=>{v.g.visible=i===cur;});
+  if(cur===0)viewP1(dt);else viewCell(cur,dt);
+  const v=V[cur];
+  v.labels.forEach(l=>{l.sp.visible=showLabels&&l.cond(s);});
+  applyCam(dt);renderer.render(scene,camera);
+ }
+ roAcc+=dt;if(roAcc>.12){roAcc=0;readout();}
+}
+
+/* ========================= GIAO DIỆN ========================= */
+function partScore(p){return qst[p].reduce((a,q)=>a+q.score,0);}
+function updateScore(){
+ let t=0;for(let p=0;p<3;p++)t+=partScore(p);
+ $('#totScore').textContent=fmt(Math.round(t*100)/100,2).replace(/,?0+$/,x=>x.includes(',')?'':x);
+}
+function renderTabs(){
+ const SH=['Điều chế Al','Tinh chế Cu','Mạ điện'];
+ $('#tabs').innerHTML=PARTS.map((P,i)=>`<button class="tab ${i===cur?'on':''}" data-tab="${i}" title="${P.name} — ${P.sub}"><span class="n">${i+1}</span><span class="tt">${SH[i]}</span><span class="bd">${fmt(Math.round(partScore(i)*100)/100,2).replace(/,?0+$/,x=>x.includes(',')?'':x)}/6</span></button>`).join('');
+}
+function renderSteps(){
+ const P=PARTS[cur],s=st[cur],c=curStep(s);
+ $('#intro').innerHTML=`<button class="lk" data-intro="1">📖 Thuyết minh ${introOpen?'▾':'▸'}</button>${introOpen?`<div class="it">${P.intro}</div>`:''}`;
+ const sel=selStep[cur]===null?(c<0?P.steps.length-1:c):selStep[cur];
+ $('#steps').innerHTML=P.steps.map((S,i)=>{
+  const done=s.done[i],isCur=i===c,lock=i>c&&c>=0;
+  let cls='stp'+(done?' done':'')+(isCur?' cur':'')+(lock?' lock':'');
+  let h=`<div class="${cls}"><div class="sh" data-step="${i}"><span class="si">${done?'✓':i+1}</span><span class="st">${S.t}</span></div>`;
+  if(i===sel){
+   h+=`<div class="sb">${S.d}${S.eq.map(e=>`<div class="eq">${e}</div>`).join('')}`;
+   if(isCur)h+=`<button class="btn pri" data-act="${i}">▶ ${S.btn}</button>`;
+   h+='</div>';
+  }
+  return h+'</div>';
+ }).join('');
+}
+function sl(id,label,min,max,step,val,unit,dec){
+ return `<label class="sl"><span>${label}: <b id="${id}v">${fmt(val,dec)}</b>${unit}</span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"></label>`;
+}
+function bindSl(id,dec,fn){
+ const e=$('#'+id);if(!e)return;
+ e.addEventListener('input',()=>{const x=parseFloat(e.value);fn(x);$('#'+id+'v').textContent=fmt(x,dec);});
+}
+function renderBar(){
+ const P=PARTS[cur],s=st[cur],c=curStep(s),all=c<0;
+ let h=`<div class="brow"><button class="btn pri" id="mainBtn">${all?'↺ Đã hoàn thành — làm lại':'▶ '+P.steps[c].btn}</button><span id="msg" class="msg"></span></div><div class="brow ctl">`;
+ if(cur===0){
+  h+=sl('sp','Tốc độ mô phỏng','60','1800','20',s.speed,'×',0)+sl('ia','Cường độ dòng điện','5','25','0.1',s.I,' kA',1);
+  h+=`<label class="chk"><input type="checkbox" id="auto" ${s.auto?'checked':''}> Tự động hạ anode</label>`;
+  h+=`<button class="btn" id="lowBtn" ${s.on?'':'disabled'}>⬇ Hạ anode</button>`;
+  h+=`<button class="btn" id="pwBtn" ${s.done[3]&&!s.done[5]?'':'disabled'}>${s.on?'⏻ Ngắt điện':'⏻ Bật điện'}</button>`;
+ }else if(cur===1){
+  h+=sl('sp','Tốc độ mô phỏng','60','2000','20',s.speed,'×',0)+sl('ia','Cường độ dòng điện','1','10','0.05',s.I,' A',2);
+  h+=`<button class="btn" id="pwBtn" ${s.done[3]&&!s.done[4]?'':'disabled'}>${s.on?'⏻ Ngắt nguồn':'⏻ Bật nguồn'}</button>`;
+ }else{
+  h+=sl('sp','Tốc độ mô phỏng','60','2000','20',s.speed,'×',0)+sl('ia','Cường độ dòng điện','0.1','2','0.05',s.I,' A',2);
+  h+=`<button class="btn" id="pwBtn" ${s.done[2]&&!s.done[3]?'':'disabled'}>${s.on?'⏻ Ngắt nguồn':'⏻ Bật nguồn'}</button>`;
+  h+=`<button class="btn warn" id="flipBtn" ${s.done[2]&&!s.done[3]?'':'disabled'}>⇄ Đảo cực (đối chứng)${s.flip?' · đang đảo':''}</button>`;
+  h+=`<button class="btn warn" id="wrongBtn" ${s.done[0]&&!s.done[1]?'':'disabled'}>Thử nối ngược (chìa khoá → +)</button>`;
+ }
+ h+='</div>';
+ $('#bar').innerHTML=h;$('#legend').innerHTML=P.legend;
+ bindSl('sp',0,x=>{s.speed=x;});
+ bindSl('ia',cur===0?1:2,x=>{s.I=x;});
+ const a=$('#auto');if(a)a.addEventListener('change',()=>{s.auto=a.checked;});
+ const lb=$('#lowBtn');if(lb)lb.addEventListener('click',()=>{if(lowerAnode(s))toast('Đã hạ anode một nấc.');});
+ const pw=$('#pwBtn');if(pw)pw.addEventListener('click',()=>{s.on=!s.on;renderBar();});
+ const fb=$('#flipBtn');if(fb)fb.addEventListener('click',()=>{s.flip=!s.flip;renderBar();toast(s.flip?(keyCath(s)?'Chìa khoá đang là cathode (−).':'Đảo cực: chìa khoá thành anode (+) — lớp Cu bị hoà tan, sắt bị ăn mòn!'):'Đã đảo lại đúng cực.');});
+ const wb=$('#wrongBtn');if(wb)wb.addEventListener('click',()=>{s.wireKey='pos';s.flip=false;toast('Sai cực: chìa khoá nối cực dương sẽ không được mạ. Hãy nối lại đúng.');renderBar();});
+ $('#mainBtn').addEventListener('click',()=>{if(all)resetPart(cur);else act(cur,c);});
+}
+function act(p,i){
+ const s=st[p],S=PARTS[p].steps[i];
+ if(!(i===0||s.done[i-1]))return;
+ if(s.done[i])return;
+ const m=S.ready(s);if(m){toast(m);return;}
+ const r=S.run(s);if(r===false)return;
+ if(S.instant)s.done[i]=true;
+ selStep[p]=null;ui();
+}
+function readout(){
+ const s=st[cur];let h='';
+ if(cur===0){
+  const stt=s.temp<300?'rắn':(s.temp<950?'đang nóng lên':'nóng chảy');
+  h=`<b>Thùng điện phân Al₂O₃ nóng chảy</b><br>🌡 Nhiệt độ: <b>${Math.round(s.temp)} °C</b> (${stt})<br>⏱ Thời gian mô phỏng: <b>${hms(s.t)}</b><br>⚡ I hiệu dụng: <b>${fmt(s.on&&s.temp>=950?s.I*1000*s.f:0,0)} A</b><br>↕ Khoảng cách anode–Al: <b>${fmt(Math.max(0,s.gap),2)}</b> (đv)<br>Al sinh ra (tổng): <b>${fmt(s.alTot/1000,3)} kg</b><br>Al trong thùng: <b>${fmt(s.al/1000,3)} kg</b> · đã tháo: <b>${fmt(s.tapped/1000,3)} kg</b>`;
+  if(s.on&&s.gap>.75)h+=`<br><span class="w">⚠ Anode đã cách xa lớp Al → điện trở tăng, dòng giảm. Hãy hạ anode.</span>`;
+  else if(s.on&&s.gap<.15)h+=`<br><span class="w">⚠ Anode gần chạm lớp Al lỏng.</span>`;
+  if(s.burn>.9)h+=`<br><span class="w">Anode đã hao mòn nhiều do O₂ đốt cháy.</span>`;
+ }else if(cur===1){
+  const p2=s.on?'đang điện phân':(s.out>=1?'đã kết thúc':'chưa chạy');
+  h=`<b>Tinh chế đồng thô</b> — ${p2}<br>⏱ Thời gian mô phỏng: <b>${hms(s.t)}</b> (${fmt(s.t,0)} s)<br>⚡ Cường độ: <b>${fmt(s.I,2)} A</b><br>Điện lượng Q = <b>${fmt(s.I*s.t,0)} C</b><br>Cu tan ở anode = Cu bám ở cathode:<br><b>Δm = ${fmt(s.dm,3)} g</b><br>Anode (đồng thô): <b>${fmt(60-s.dm,2)} g</b> (ban đầu 60 g)<br>Cathode (Cu tinh khiết): <b>${fmt(20+s.dm,2)} g</b> (ban đầu 20 g)`;
+  if(s.out>=1)h+=`<br><span class="w">✓ Thu được đồng tinh khiết ở cathode.</span>`;
+ }else{
+  const kc=s.wireKey===null?null:keyCath(s);
+  const thick=s.cu/(8.96*20)*1e4;
+  h=`<b>Mạ đồng lên chìa khoá</b><br>Chìa khoá: <b>${kc===null?'chưa nối':(kc?'cathode (−)':'ANODE (+) ⚠')}</b><br>⏱ Thời gian mô phỏng: <b>${hms(s.t)}</b> (${fmt(s.t,0)} s)<br>⚡ Cường độ: <b>${fmt(s.I,2)} A</b> · Q = <b>${fmt(s.I*s.t,0)} C</b><br>Khối lượng Cu bám trên chìa khoá: <b>${fmt(s.cu,3)} g</b><br>Độ dày lớp mạ ≈ <b>${fmt(thick,1)} µm</b><br><span style="color:#92a6bd;font-size:11.5px">(S = 20 cm², ρ = 8,96 g/cm³)</span>`;
+  if(kc===false&&s.on)h+=`<br><span class="w">⚠ Chìa khoá là anode: lớp Cu bị hoà tan${s.cu<=0?', sắt bị ăn mòn (Fe → Fe²⁺ + 2e)':''}.</span>`;
+  if(s.out>=1)h+=`<br><span class="w">✓ Chìa khoá được phủ một lớp đồng.</span>`;
+ }
+ $('#roBody').innerHTML=h;
+}
+
+/* ----- câu hỏi ----- */
+function parseNum(x){const t=String(x).replace(/\s/g,'').replace(',','.');return t===''?NaN:Number(t);}
+function renderQ(){
+ const qs=QS[cur];
+ const sc=partScore(cur);
+ $('#qhead').innerHTML=`<h3>Câu hỏi tương tác — Phần ${cur+1}</h3><div>${PARTS[cur].name} · 2 trắc nghiệm, 2 điền đáp án, 2 đúng/sai · Điểm phần: <b>${fmt(Math.round(sc*100)/100,2).replace(/,?0+$/,x=>x.includes(',')?'':x)}/6</b></div>`;
+ let h='';
+ qs.forEach((q,i)=>{
+  const S=qst[cur][i];
+  let cls='qc';if(S.checked)cls+=S.score>=1?' ok':(S.score>0?' mid':' bad');
+  h+=`<div class="${cls}"><div class="qh"><span class="qn">Câu ${i+1}</span><span class="qt">${QT[q.type]}</span><span class="qs">${S.checked?fmt(Math.round(S.score*100)/100,2).replace(/,?0+$/,x=>x.includes(',')?'':x)+'/1':'1 điểm'}</span></div><div class="qq">${q.q}</div>`;
+  if(q.type==='mc'){
+   h+=q.opts.map((o,k)=>{let c='opt';if(S.checked){if(k===q.ans)c+=' right';else if(k===S.sel)c+=' wrong';}else if(k===S.sel)c+=' sel';return `<button class="${c}" data-a="mc" data-i="${i}" data-k="${k}" ${S.checked?'disabled':''}>${'ABCD'[k]}. ${o}</button>`;}).join('');
+   if(S.checked){h+=`<div class="qf ${S.score?'g':'r'}">${S.score?'✓ Chính xác. ':'✗ Chưa đúng. '}${q.exp}</div>`;if(!S.score)h+=`<div class="qa"><button class="btn" data-a="retry" data-i="${i}">Làm lại</button></div>`;}
+  }else if(q.type==='num'){
+   h+=`<div class="numrow"><input type="text" inputmode="decimal" data-n="${i}" value="${S.vals}" placeholder="Nhập đáp số" ${S.score>=1?'disabled':''}><span class="unit">${q.unit}</span><button class="btn" data-a="num" data-i="${i}" ${S.score>=1?'disabled':''}>Kiểm tra</button></div>`;
+   if(S.checked){
+    if(S.score>=1)h+=`<div class="qf g">✓ Chính xác. ${q.exp}</div>`;
+    else if(S.att>=2)h+=`<div class="qf r">✗ Chưa đúng. Đáp số: <b>${fmt(q.ans,q.ans<1?3:(q.ans%1?2:0))} ${q.unit}</b>. ${q.exp}</div>`;
+    else h+=`<div class="qf y">✗ Chưa chính xác — thử lại. Gợi ý: dùng m = A·I·t/(n·F) hoặc bảo toàn electron; chú ý đổi đơn vị.</div>`;
+   }
+  }else{
+   h+=q.items.map((it,k)=>{
+    const v=S.tf[k];let c='tfr';if(S.checked)c+=(v===it.a)?' r':' w';
+    return `<div class="${c}"><span class="tt">${'abcd'[k]}) ${it.t}${S.checked?`<div class="tfx">${v===it.a?'✓':'✗'} ${it.x}</div>`:''}</span><span class="tfb"><button class="${v===true?'on':''}" data-a="tf" data-i="${i}" data-k="${k}" data-v="1" ${S.checked?'disabled':''}>Đúng</button><button class="${v===false?'on':''}" data-a="tf" data-i="${i}" data-k="${k}" data-v="0" ${S.checked?'disabled':''}>Sai</button></span></div>`;
+   }).join('');
+   const ready=S.tf.every(x=>x!==null);
+   if(!S.checked)h+=`<div class="qa"><button class="btn pri" data-a="tfc" data-i="${i}" ${ready?'':'disabled'}>Kiểm tra</button></div>`;
+   else h+=`<div class="qf ${S.score>=1?'g':(S.score>0?'y':'r')}">Đúng ${Math.round(S.score*4)}/4 ý.</div><div class="qa"><button class="btn" data-a="retry" data-i="${i}">Làm lại</button></div>`;
+  }
+  h+='</div>';
+ });
+ $('#qlist').innerHTML=h;
+}
+function ui(){renderTabs();renderSteps();renderBar();renderQ();updateScore();}
+function resetPart(p){
+ st[p]=newState(p);selStep[p]=null;
+ if(HAS3D&&V[p]){V[p].wireKey='';}
+ ui();
+}
+function switchPart(p){
+ cur=p;if(HAS3D&&renderer)goCam(p);ui();
+}
+
+/* ----- sự kiện ----- */
+document.addEventListener('click',e=>{
+ const t=e.target.closest('[data-tab],[data-step],[data-act],[data-a],[data-intro]');if(!t)return;
+ if(t.dataset.intro!==undefined){introOpen=!introOpen;renderSteps();return;}
+ if(t.dataset.tab!==undefined){switchPart(+t.dataset.tab);return;}
+ if(t.dataset.step!==undefined){selStep[cur]=+t.dataset.step;renderSteps();return;}
+ if(t.dataset.act!==undefined){act(cur,+t.dataset.act);return;}
+ const a=t.dataset.a,i=+t.dataset.i,q=QS[cur][i],S=qst[cur][i];
+ if(a==='mc'){S.sel=+t.dataset.k;S.checked=true;S.score=S.sel===q.ans?1:0;S.att++;renderQ();renderTabs();updateScore();}
+ else if(a==='num'){
+  const inp=$(`[data-n="${i}"]`);S.vals=inp?inp.value:S.vals;
+  const v=parseNum(S.vals);if(!isFinite(v)){S.checked=false;const f=inp;if(f){f.style.borderColor='#ef6a6a';f.focus();}return;}
+  S.checked=true;S.att++;S.score=Math.abs(v-q.ans)<=Math.max(Math.abs(q.ans)*.01,1e-9)?1:0;renderQ();renderTabs();updateScore();
+ }
+ else if(a==='tf'){S.tf[+t.dataset.k]=t.dataset.v==='1';renderQ();}
+ else if(a==='tfc'){S.checked=true;S.att++;S.score=q.items.filter((it,k)=>S.tf[k]===it.a).length/4;renderQ();renderTabs();updateScore();}
+ else if(a==='retry'){qst[cur][i]={sel:null,vals:'',tf:[null,null,null,null],checked:false,score:0,att:S.att};renderQ();renderTabs();updateScore();}
+});
+document.addEventListener('input',e=>{const n=e.target.dataset&&e.target.dataset.n;if(n!==undefined&&n!==''){qst[cur][+n].vals=e.target.value;e.target.style.borderColor='';}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset&&e.target.dataset.n!==undefined){const b=$(`[data-a="num"][data-i="${e.target.dataset.n}"]`);if(b)b.click();}});
+function relayout(){setTimeout(()=>{try{window.dispatchEvent(new Event('resize'));}catch(x){}},30);}
+$('#tgL').addEventListener('click',e=>{const h=$('#app').classList.toggle('hl');e.currentTarget.classList.toggle('on',!h);relayout();});
+$('#tgR').addEventListener('click',e=>{const h=$('#app').classList.toggle('hr');e.currentTarget.classList.toggle('on',!h);relayout();});
+$('#roHead').addEventListener('click',()=>{const m=$('#readout').classList.toggle('min');$('#roArr').textContent=m?'▸':'▾';});
+$('#lbl').addEventListener('change',e=>{showLabels=e.target.checked;});
+$('#camReset').addEventListener('click',()=>{if(HAS3D)goCam(cur);});
+$('#resetPart').addEventListener('click',()=>{if(confirm('Làm lại thí nghiệm của phần này từ đầu? (Điểm câu hỏi được giữ nguyên)'))resetPart(cur);});
+
+/* ----- chạy ----- */
+if(HAS3D){try{init3D();}catch(err){console.error(err);$('#nolib').style.display='flex';$('#nolib').innerHTML='<div><h2>Không khởi tạo được WebGL</h2><p>Trình duyệt/thiết bị chưa bật WebGL nên không hiển thị được cảnh 3D.<br>Phần quy trình và câu hỏi vẫn dùng được.</p></div>';renderer=null;}}
+else{$('#nolib').style.display='flex';}
+ui();readout();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
